@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>도서 구매비 지원 안내</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: rgba(255, 255, 255, 0.9);
+      --line: rgba(15, 23, 42, 0.08);
+      --text: #0f172a;
+      --muted: #526079;
+      --accent: #0f766e;
+      --accent-soft: #d5f3ef;
+      --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+      --radius: 24px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 26%),
+        linear-gradient(180deg, var(--bg), #ffffff 72%);
+    }
+    .wrap { width: min(1200px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 56px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .hero { position: relative; overflow: hidden; padding: 28px; }
+    .hero h1 { margin: 10px 0 12px; font-size: clamp(2rem, 4vw, 3.8rem); line-height: .98; letter-spacing: -.04em; }
+    .kicker { color: var(--accent); text-transform: uppercase; letter-spacing: .16em; font-weight: 800; font-size: .76rem; }
+    .lead { margin: 0; max-width: 76ch; color: var(--muted); font-size: 1.02rem; line-height: 1.75; }
+    .chips, .statusbar, .buttons, .inline { display: flex; gap: 10px; flex-wrap: wrap; }
+    .chips { margin-top: 20px; }
+    .chip, .badge {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.9);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: .92rem;
+    }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 18px; }
+    .metric { grid-column: span 3; padding: 18px; }
+    .metric .label, .footer-note, label, .panel p.desc, td small, .muted { color: var(--muted); }
+    .metric .value { font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; }
+    .metric .sub { margin-top: 8px; color: var(--muted); font-size: .88rem; line-height: 1.45; }
+    .layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; margin-top: 16px; }
+    .panel { padding: 20px; }
+    .panel h2, .panel h3 { margin: 0 0 8px; }
+    .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .rule { border: 1px solid var(--line); background: rgba(248, 250, 252, 0.9); border-radius: 18px; padding: 14px; }
+    .rule .title { font-weight: 700; margin-bottom: 6px; }
+    .rule .text { color: var(--muted); line-height: 1.55; font-size: .92rem; }
+    .form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid rgba(15, 23, 42, 0.14);
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+    textarea { min-height: 108px; resize: vertical; }
+    button, .button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .primary { background: linear-gradient(135deg, var(--accent), #14b8a6); color: white; }
+    .secondary { background: white; color: var(--text); border: 1px solid var(--line); }
+    .table-wrap { overflow: auto; border-radius: 20px; border: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.98); }
+    th, td { text-align: left; padding: 13px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.16); vertical-align: top; white-space: nowrap; }
+    th { position: sticky; top: 0; background: rgba(248,250,252,0.98); font-size: .82rem; color: var(--muted); z-index: 1; }
+    td small { display: block; margin-top: 4px; white-space: normal; max-width: 260px; }
+    .small { padding: 9px 12px; font-size: .9rem; }
+    .footer-note { font-size: .88rem; line-height: 1.6; margin-top: 12px; }
+    .section { margin-top: 16px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(420px, calc(100vw - 32px));
+      background: rgba(15, 23, 42, 0.96);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      display: none;
+    }
+    .toast.show { display: block; }
+    .hidden { display: none !important; }
+    .empty { padding: 20px; color: var(--muted); text-align: center; }
+    @media (max-width: 980px) {
+      .metric { grid-column: span 6; }
+      .layout, .rules { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .wrap { width: min(100% - 20px, 100%); padding-top: 12px; }
+      .hero, .panel { padding: 18px; }
+      .metric { grid-column: span 12; }
+      .form { grid-template-columns: 1fr; }
+      th, td { padding: 10px 9px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero card">
+      <div class="kicker">Book Purchase Support</div>
+      <h1>도서 구매비 지원 안내</h1>
+      <p class="lead">
+        이 페이지는 팀원들이 분기 예산 안에서 도서를 신청하고, 구매 진행 상태와 공유 가능 여부를 함께 확인하는 공지형 신청 페이지입니다.
+        개인 배송지는 암호화 저장되며, 비밀번호가 있어야만 확인할 수 있습니다.
+      </p>
+      <div class="chips">
+        <span class="chip">시작: 7월</span>
+        <span class="chip">신청 마감: 매월 1일 오전 10시</span>
+        <span class="chip">주문 완료: 매월 5일까지</span>
+        <span class="chip">구매 담당: Kristy (3개월)</span>
+        <span class="chip">시트 관리: Saige</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card metric">
+        <div class="label">현재 분기</div>
+        <div class="value" id="current-quarter"></div>
+        <div class="sub">분기별 1회 구매 주기를 기준으로 자동 표시합니다.</div>
+      </div>
+      <div class="card metric">
+        <div class="label">인당 예산</div>
+        <div class="value" id="quarter-budget"></div>
+        <div class="sub">금액 몰아주기 없이 개인별 누적 합계로 관리합니다.</div>
+      </div>
+      <div class="card metric">
+        <div class="label">다음 마감</div>
+        <div class="value" id="next-deadline"></div>
+        <div class="sub" id="deadline-detail"></div>
+      </div>
+      <div class="card metric">
+        <div class="label">시트 상태</div>
+        <div class="value" id="sheet-status"></div>
+        <div class="sub"><a id="sheet-link" href="#" target="_blank" rel="noreferrer">구글 시트 열기</a></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card panel">
+        <h2>운영 안내</h2>
+        <p class="desc">아래 규칙을 기준으로 도서 신청과 상태 관리를 진행합니다. 신청은 오른쪽 폼에서 바로 등록할 수 있습니다.</p>
+        <div class="rules" id="rules"></div>
+        <div class="statusbar" id="statusbar"></div>
+        <div class="footer-note">
+          개인정보는 평문으로 보관하지 않습니다. 목록에는 확인용 정보만 보이며, 원문은 비밀번호 확인 후에만 열람됩니다.
+        </div>
+      </div>
+
+      <div class="card panel">
+        <h2>도서 신청</h2>
+        <p class="desc">신청이 등록되면 분기 예산에 반영되고, 상태는 시트와 함께 관리됩니다.</p>
+        <form id="request-form" class="form">
+          <div class="field">
+            <label for="requester_name">신청자 이름</label>
+            <input id="requester_name" name="requester_name" placeholder="이름" required />
+          </div>
+          <div class="field">
+            <label for="requester_email">팀 이메일</label>
+            <input id="requester_email" name="requester_email" type="email" placeholder="name@company.com" required />
+          </div>
+          <div class="field full">
+            <label for="book_title">도서명</label>
+            <input id="book_title" name="book_title" placeholder="책 제목" required />
+          </div>
+          <div class="field">
+            <label for="author">저자</label>
+            <input id="author" name="author" placeholder="저자명" />
+          </div>
+          <div class="field">
+            <label for="book_url">참고 링크</label>
+            <input id="book_url" name="book_url" placeholder="구매 링크 또는 참고 URL" />
+          </div>
+          <div class="field">
+            <label for="estimated_amount">금액</label>
+            <input id="estimated_amount" name="estimated_amount" type="number" min="0" step="100" placeholder="예: 18000" required />
+          </div>
+          <div class="field">
+            <label for="purchase_manager">구매 담당자</label>
+            <input id="purchase_manager" name="purchase_manager" placeholder="Kristy" />
+          </div>
+          <div class="field full">
+            <label for="shipping_address">개인 배송지</label>
+            <textarea id="shipping_address" name="shipping_address" placeholder="받을 주소를 입력하세요. 이 정보는 비밀번호가 있어야만 열람됩니다." required></textarea>
+          </div>
+          <div class="field">
+            <label for="private_password">비밀번호</label>
+            <input id="private_password" name="private_password" type="password" placeholder="나중에 주소를 볼 때 사용할 비밀번호" required />
+          </div>
+          <div class="field full">
+            <label for="notes">메모</label>
+            <textarea id="notes" name="notes" placeholder="급한 요청, 읽은 뒤 공유 가능 여부, 참고 사항을 남기세요."></textarea>
+          </div>
+          <div class="field full">
+            <label class="toggle"><input id="urgent_request" name="urgent_request" type="checkbox" /> 급한 업무로 인한 별도 요청</label>
+          </div>
+          <div class="field full">
+            <label class="toggle"><input id="share_status" name="share_status" type="checkbox" checked /> 읽은 뒤 공유 가능으로 전환 예정</label>
+          </div>
+          <div class="field full">
+            <label for="request_quarter">분기</label>
+            <input id="request_quarter" name="request_quarter" readonly />
+          </div>
+          <div class="field full">
+            <div class="buttons">
+              <button class="primary" type="submit">신청 등록</button>
+              <a class="button secondary" href="/api/export.csv" target="_blank" rel="noreferrer">CSV 다운로드</a>
+            </div>
+          </div>
+        </form>
+        <div class="footer-note" id="budget-note"></div>
+      </div>
+    </section>
+
+    <section class="card panel section">
+      <div class="section-head">
+        <div>
+          <h2>신청 현황</h2>
+          <p class="desc">구매요청, 구매중, 구매완료, 소장용, 공유 가능 상태를 한 화면에서 확인할 수 있습니다.</p>
+        </div>
+        <div class="inline">
+          <input id="search" class="small" placeholder="이름 또는 도서 검색" />
+          <select id="status-filter" class="small">
+            <option value="">전체 상태</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>신청자</th>
+              <th>도서</th>
+              <th>금액</th>
+              <th>상태</th>
+              <th>공유</th>
+              <th>배송지</th>
+              <th>구매 담당자</th>
+              <th>동작</th>
+            </tr>
+          </thead>
+          <tbody id="records-body"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="empty-state">아직 신청이 없습니다. 첫 신청을 넣어보세요.</div>
+    </section>
+
+    <section class="card panel section">
+      <div class="section-head">
+        <div>
+          <h3>개인 정보 열람</h3>
+          <p class="desc">신청 시 설정한 비밀번호를 입력하면 해당 신청자의 배송지를 확인할 수 있습니다.</p>
+        </div>
+      </div>
+      <div class="form">
+        <div class="field">
+          <label for="unlock_id">신청 ID</label>
+          <input id="unlock_id" placeholder="예: BK-..." />
+        </div>
+        <div class="field">
+          <label for="unlock_password">비밀번호</label>
+          <input id="unlock_password" type="password" placeholder="신청 시 설정한 비밀번호" />
+        </div>
+        <div class="field full">
+          <div class="buttons">
+            <button class="secondary" type="button" id="unlock-btn">배송지 열람</button>
+            <button class="secondary" type="button" id="admin-login-btn">관리자 모드</button>
+          </div>
+        </div>
+      </div>
+      <div class="section hidden" id="unlock-result"></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script>
+    window.__BOOTSTRAP__ = {
+      program: {
+        start_month: "7월",
+        purchase_deadline: "매월 1일 오전 10시 마감, 매월 5일까지 주문",
+        purchase_manager: "Kristy (3개월)",
+        sheet_manager: "Saige",
+        quarter_budget: 50000,
+        sheet_url: "",
+        sheet_status: "로컬 확인용",
+        current_quarter: "-",
+        next_deadline: "",
+        rules: [
+          "분기별 1회 구매",
+          "1인당 5만원 이하",
+          "금액 몰아주기 금지",
+          "개인 배송지는 비밀번호로만 공개"
+        ]
+      },
+      records: [],
+      status_counts: {},
+      manager_password_set: false
+    };
+  </script>
+  <!--BOOTSTRAP_JSON_MARKER-->
+  <script src="./web/app.js"></script>
+</body>
+</html>
