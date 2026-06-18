@@ -1,5 +1,3 @@
-const crypto = require("crypto");
-
 const HEADERS = [
   "id",
   "created_at",
@@ -15,106 +13,43 @@ const HEADERS = [
   "updated_at",
 ];
 
-function parseSheetId(urlOrId) {
-  const value = String(urlOrId || "").trim();
-  if (!value) return "";
-  if (value.includes("/d/")) {
-    return value.split("/d/", 1)[1].split("/", 1)[0];
-  }
-  return value;
-}
-
-function sheetId() {
-  return parseSheetId(process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_URL || "");
-}
-
-function sheetTab() {
-  return String(process.env.GOOGLE_SHEET_TAB || "Sheet1").trim();
-}
-
-function serviceAccountEmail() {
-  return String(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").trim();
-}
-
-function privateKey() {
-  return String(process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n").trim();
+function appsScriptUrl() {
+  return String(process.env.APPS_SCRIPT_WEBAPP_URL || "").trim();
 }
 
 function enabled() {
-  return Boolean(sheetId() && serviceAccountEmail() && privateKey());
+  return Boolean(appsScriptUrl());
 }
 
-function base64url(input) {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-async function accessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const payload = base64url(
-    JSON.stringify({
-      iss: serviceAccountEmail(),
-      scope: "https://www.googleapis.com/auth/spreadsheets",
-      aud: "https://oauth2.googleapis.com/token",
-      iat: now,
-      exp: now + 3600,
-    })
-  );
-  const signer = crypto.createSign("RSA-SHA256");
-  signer.update(`${header}.${payload}`);
-  signer.end();
-  const signature = base64url(signer.sign(privateKey()));
-  const assertion = `${header}.${payload}.${signature}`;
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
-    }).toString(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Google OAuth 실패: ${response.status}`);
-  }
-  const data = await response.json();
-  return data.access_token;
-}
-
-async function sheetsRequest(method, path, body) {
+async function scriptRequest(method, body) {
   if (!enabled()) {
-    throw new Error("Google Sheets 연결 정보가 설정되지 않았습니다.");
+    throw new Error("앱스 스크립트 연결 정보가 설정되지 않았습니다.");
   }
-  const token = await accessToken();
-  const suffix = String(path || "");
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId()}${
-    suffix.startsWith("?") ? suffix : `/${suffix}`
-  }`;
-  const response = await fetch(url, {
+
+  const response = await fetch(appsScriptUrl(), {
     method,
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json; charset=utf-8",
     },
     body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
   });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `Google Sheets API 오류: ${response.status}`);
-  }
-  if (response.status === 204) return {};
-  return response.json();
-}
 
-async function sheetTitle() {
-  const meta = await sheetsRequest("GET", "?fields=sheets(properties(title))");
-  const sheets = Array.isArray(meta.sheets) ? meta.sheets : [];
-  return sheets[0]?.properties?.title || sheetTab();
+  const text = await response.text().catch(() => "");
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { ok: false, error: text };
+    }
+  }
+
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Apps Script 오류: ${response.status}`);
+  }
+
+  return data;
 }
 
 function normalizeAmount(value) {
@@ -145,60 +80,23 @@ function normalizeRecord(record) {
   };
 }
 
-function recordToRow(record) {
-  return HEADERS.map((key) => {
-    if (key === "estimated_amount") return String(normalizeAmount(record[key]));
-    return String(record[key] ?? "");
-  });
-}
-
-function rowToRecord(headerRow, row) {
-  const record = {};
-  headerRow.forEach((header, index) => {
-    record[header] = row[index] ?? "";
-  });
-  return normalizeRecord(record);
-}
-
 async function readRecords() {
   if (!enabled()) return [];
-  const title = await sheetTitle();
-  const range = encodeURIComponent(`${title}!A1:Z1000`);
-  const result = await sheetsRequest(
-    "GET",
-    `values/${range}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE`
-  );
-  const rows = Array.isArray(result.values) ? result.values : [];
-  if (!rows.length) return [];
-  const header = rows[0].map((value) => String(value || "").trim());
-  return rows
-    .slice(1)
-    .filter((row) => Array.isArray(row) && row.some((cell) => String(cell || "").trim()))
-    .map((row) => rowToRecord(header, row))
-    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const result = await scriptRequest("GET");
+  const rows = Array.isArray(result.records) ? result.records : [];
+  return rows.map(normalizeRecord).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 }
 
-async function writeRecords(records) {
+async function appendRecord(record) {
   if (!enabled()) return;
-  const title = await sheetTitle();
-  const rows = [HEADERS, ...records.map(recordToRow)];
-  const range = encodeURIComponent(`${title}!A1`);
-  await sheetsRequest(
-    "PUT",
-    `values/${range}?valueInputOption=RAW&includeValuesInResponse=false`,
-    {
-      range: `${title}!A1`,
-      majorDimension: "ROWS",
-      values: rows,
-    }
-  );
+  await scriptRequest("POST", { record: normalizeRecord(record) });
 }
 
 module.exports = {
   enabled,
   HEADERS,
+  appendRecord,
   normalizeRecord,
   quarterLabel,
   readRecords,
-  writeRecords,
 };
