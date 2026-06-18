@@ -1,334 +1,476 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>도서 구매비 지원 안내</title>
-  <style>
-    :root {
-      --bg: #f4f7fb;
-      --card: rgba(255, 255, 255, 0.9);
-      --line: rgba(15, 23, 42, 0.08);
-      --text: #0f172a;
-      --muted: #526079;
-      --accent: #0f766e;
-      --accent-soft: #d5f3ef;
-      --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
-      --radius: 24px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(15, 118, 110, 0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 26%),
-        linear-gradient(180deg, var(--bg), #ffffff 72%);
-    }
-    .wrap { width: min(1200px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 56px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
-    }
-    .hero { position: relative; overflow: hidden; padding: 28px; }
-    .hero h1 { margin: 10px 0 12px; font-size: clamp(2rem, 4vw, 3.8rem); line-height: .98; letter-spacing: -.04em; }
-    .kicker { color: var(--accent); text-transform: uppercase; letter-spacing: .16em; font-weight: 800; font-size: .76rem; }
-    .lead { margin: 0; max-width: 76ch; color: var(--muted); font-size: 1.02rem; line-height: 1.75; }
-    .chips, .statusbar, .buttons, .inline { display: flex; gap: 10px; flex-wrap: wrap; }
-    .chips { margin-top: 20px; }
-    .chip, .badge {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.9);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 9px 14px;
-      font-size: .92rem;
-    }
-    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 18px; }
-    .metric { grid-column: span 3; padding: 18px; }
-    .metric .label, .footer-note, label, .panel p.desc, td small, .muted { color: var(--muted); }
-    .metric .value { font-size: 1.3rem; font-weight: 800; letter-spacing: -.02em; }
-    .metric .sub { margin-top: 8px; color: var(--muted); font-size: .88rem; line-height: 1.45; }
-    .layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; margin-top: 16px; }
-    .panel { padding: 20px; }
-    .panel h2, .panel h3 { margin: 0 0 8px; }
-    .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .rule { border: 1px solid var(--line); background: rgba(248, 250, 252, 0.9); border-radius: 18px; padding: 14px; }
-    .rule .title { font-weight: 700; margin-bottom: 6px; }
-    .rule .text { color: var(--muted); line-height: 1.55; font-size: .92rem; }
-    .form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .field { display: flex; flex-direction: column; gap: 6px; }
-    .field.full { grid-column: 1 / -1; }
-    input, textarea, select {
-      width: 100%;
-      border: 1px solid rgba(15, 23, 42, 0.14);
-      background: rgba(255, 255, 255, 0.95);
-      color: var(--text);
-      border-radius: 14px;
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-    textarea { min-height: 108px; resize: vertical; }
-    button, .button {
-      border: 0;
-      border-radius: 14px;
-      padding: 12px 16px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .primary { background: linear-gradient(135deg, var(--accent), #14b8a6); color: white; }
-    .secondary { background: white; color: var(--text); border: 1px solid var(--line); }
-    .table-wrap { overflow: auto; border-radius: 20px; border: 1px solid var(--line); }
-    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.98); }
-    th, td { text-align: left; padding: 13px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.16); vertical-align: top; white-space: nowrap; }
-    th { position: sticky; top: 0; background: rgba(248,250,252,0.98); font-size: .82rem; color: var(--muted); z-index: 1; }
-    td small { display: block; margin-top: 4px; white-space: normal; max-width: 260px; }
-    .small { padding: 9px 12px; font-size: .9rem; }
-    .footer-note { font-size: .88rem; line-height: 1.6; margin-top: 12px; }
-    .section { margin-top: 16px; }
-    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-    .toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      max-width: min(420px, calc(100vw - 32px));
-      background: rgba(15, 23, 42, 0.96);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px;
-      padding: 14px 16px;
-      box-shadow: var(--shadow);
-      display: none;
-    }
-    .toast.show { display: block; }
-    .hidden { display: none !important; }
-    .empty { padding: 20px; color: var(--muted); text-align: center; }
-    @media (max-width: 980px) {
-      .metric { grid-column: span 6; }
-      .layout, .rules { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 640px) {
-      .wrap { width: min(100% - 20px, 100%); padding-top: 12px; }
-      .hero, .panel { padding: 18px; }
-      .metric { grid-column: span 12; }
-      .form { grid-template-columns: 1fr; }
-      th, td { padding: 10px 9px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <section class="hero card">
-      <div class="kicker">Book Purchase Support</div>
-      <h1>도서 구매비 지원 안내</h1>
-      <p class="lead">
-        이 페이지는 팀원들이 분기 예산 안에서 도서를 신청하고, 구매 진행 상태와 공유 가능 여부를 함께 확인하는 공지형 신청 페이지입니다.
-        개인 배송지는 암호화 저장되며, 비밀번호가 있어야만 확인할 수 있습니다.
-      </p>
-      <div class="chips">
-        <span class="chip">시작: 7월</span>
-        <span class="chip">신청 마감: 매월 1일 오전 10시</span>
-        <span class="chip">주문 완료: 매월 5일까지</span>
-        <span class="chip">구매 담당: Kristy (3개월)</span>
-        <span class="chip">시트 관리: Saige</span>
-      </div>
-    </section>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>도서 구매 신청</title>
+    <style>
+      :root {
+        --bg: #eef3f7;
+        --panel: rgba(255, 255, 255, 0.92);
+        --panel-strong: #ffffff;
+        --text: #132033;
+        --muted: #5f6c80;
+        --border: rgba(19, 32, 51, 0.1);
+        --accent: #2563eb;
+        --accent-strong: #1d4ed8;
+        --shadow: 0 24px 70px rgba(30, 41, 59, 0.12);
+        --radius: 28px;
+      }
 
-    <section class="grid">
-      <div class="card metric">
-        <div class="label">현재 분기</div>
-        <div class="value" id="current-quarter"></div>
-        <div class="sub">분기별 1회 구매 주기를 기준으로 자동 표시합니다.</div>
-      </div>
-      <div class="card metric">
-        <div class="label">인당 예산</div>
-        <div class="value" id="quarter-budget"></div>
-        <div class="sub">금액 몰아주기 없이 개인별 누적 합계로 관리합니다.</div>
-      </div>
-      <div class="card metric">
-        <div class="label">다음 마감</div>
-        <div class="value" id="next-deadline"></div>
-        <div class="sub" id="deadline-detail"></div>
-      </div>
-      <div class="card metric">
-        <div class="label">시트 상태</div>
-        <div class="value" id="sheet-status"></div>
-        <div class="sub"><a id="sheet-link" href="#" target="_blank" rel="noreferrer">구글 시트 열기</a></div>
-      </div>
-    </section>
+      * {
+        box-sizing: border-box;
+      }
 
-    <section class="layout">
-      <div class="card panel">
-        <h2>운영 안내</h2>
-        <p class="desc">아래 규칙을 기준으로 도서 신청과 상태 관리를 진행합니다. 신청은 오른쪽 폼에서 바로 등록할 수 있습니다.</p>
-        <div class="rules" id="rules"></div>
-        <div class="statusbar" id="statusbar"></div>
-        <div class="footer-note">
-          개인정보는 평문으로 보관하지 않습니다. 목록에는 확인용 정보만 보이며, 원문은 비밀번호 확인 후에만 열람됩니다.
-        </div>
-      </div>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34%),
+          radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 30%),
+          linear-gradient(180deg, #f7fafc 0%, #eef3f7 100%);
+        color: var(--text);
+        font-family:
+          "Inter",
+          "Pretendard",
+          "Apple SD Gothic Neo",
+          "Noto Sans KR",
+          system-ui,
+          sans-serif;
+      }
 
-      <div class="card panel">
-        <h2>도서 신청</h2>
-        <p class="desc">신청이 등록되면 분기 예산에 반영되고, 상태는 시트와 함께 관리됩니다.</p>
-        <form id="request-form" class="form">
-          <div class="field">
-            <label for="requester_name">신청자 이름</label>
-            <input id="requester_name" name="requester_name" placeholder="이름" required />
-          </div>
-          <div class="field">
-            <label for="requester_email">팀 이메일</label>
-            <input id="requester_email" name="requester_email" type="email" placeholder="name@company.com" required />
-          </div>
-          <div class="field full">
-            <label for="book_title">도서명</label>
-            <input id="book_title" name="book_title" placeholder="책 제목" required />
-          </div>
-          <div class="field">
-            <label for="author">저자</label>
-            <input id="author" name="author" placeholder="저자명" />
-          </div>
-          <div class="field">
-            <label for="book_url">참고 링크</label>
-            <input id="book_url" name="book_url" placeholder="구매 링크 또는 참고 URL" />
-          </div>
-          <div class="field">
-            <label for="estimated_amount">금액</label>
-            <input id="estimated_amount" name="estimated_amount" type="number" min="0" step="100" placeholder="예: 18000" required />
-          </div>
-          <div class="field">
-            <label for="purchase_manager">구매 담당자</label>
-            <input id="purchase_manager" name="purchase_manager" placeholder="Kristy" />
-          </div>
-          <div class="field full">
-            <label for="shipping_address">개인 배송지</label>
-            <textarea id="shipping_address" name="shipping_address" placeholder="받을 주소를 입력하세요. 이 정보는 비밀번호가 있어야만 열람됩니다." required></textarea>
-          </div>
-          <div class="field">
-            <label for="private_password">비밀번호</label>
-            <input id="private_password" name="private_password" type="password" placeholder="나중에 주소를 볼 때 사용할 비밀번호" required />
-          </div>
-          <div class="field full">
-            <label for="notes">메모</label>
-            <textarea id="notes" name="notes" placeholder="급한 요청, 읽은 뒤 공유 가능 여부, 참고 사항을 남기세요."></textarea>
-          </div>
-          <div class="field full">
-            <label class="toggle"><input id="urgent_request" name="urgent_request" type="checkbox" /> 급한 업무로 인한 별도 요청</label>
-          </div>
-          <div class="field full">
-            <label class="toggle"><input id="share_status" name="share_status" type="checkbox" checked /> 읽은 뒤 공유 가능으로 전환 예정</label>
-          </div>
-          <div class="field full">
-            <label for="request_quarter">분기</label>
-            <input id="request_quarter" name="request_quarter" readonly />
-          </div>
-        <div class="field full">
-          <div class="buttons">
-            <button class="primary" type="submit">신청 등록</button>
-            <button class="button secondary" type="button" id="csv-download">CSV 다운로드</button>
-          </div>
-        </div>
-      </form>
-        <div class="footer-note" id="budget-note"></div>
-      </div>
-    </section>
+      body {
+        padding: 32px 18px 48px;
+      }
 
-    <section class="card panel section">
-      <div class="section-head">
-        <div>
-          <h2>신청 현황</h2>
-          <p class="desc">구매요청, 구매중, 구매완료, 소장용, 공유 가능 상태를 한 화면에서 확인할 수 있습니다.</p>
-        </div>
-        <div class="inline">
-          <input id="search" class="small" placeholder="이름 또는 도서 검색" />
-          <select id="status-filter" class="small">
-            <option value="">전체 상태</option>
-          </select>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>신청자</th>
-              <th>도서</th>
-              <th>금액</th>
-              <th>상태</th>
-              <th>공유</th>
-              <th>배송지</th>
-              <th>구매 담당자</th>
-              <th>동작</th>
-            </tr>
-          </thead>
-          <tbody id="records-body"></tbody>
-        </table>
-      </div>
-      <div class="empty hidden" id="empty-state">아직 신청이 없습니다. 첫 신청을 넣어보세요.</div>
-    </section>
+      .shell {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+      }
 
-    <section class="card panel section">
-      <div class="section-head">
-        <div>
-          <h3>개인 정보 열람</h3>
-          <p class="desc">신청 시 설정한 비밀번호를 입력하면 해당 신청자의 배송지를 확인할 수 있습니다.</p>
-        </div>
-      </div>
-      <div class="form">
-        <div class="field">
-          <label for="unlock_id">신청 ID</label>
-          <input id="unlock_id" placeholder="예: BK-..." />
-        </div>
-        <div class="field">
-          <label for="unlock_password">비밀번호</label>
-          <input id="unlock_password" type="password" placeholder="신청 시 설정한 비밀번호" />
-        </div>
-        <div class="field full">
-          <div class="buttons">
-            <button class="secondary" type="button" id="unlock-btn">배송지 열람</button>
-            <button class="secondary" type="button" id="admin-login-btn">관리자 모드</button>
+      .hero,
+      .panel {
+        background: var(--panel);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 30px;
+        margin-bottom: 18px;
+      }
+
+      .eyebrow {
+        letter-spacing: 0.22em;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #3c7d73;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3.6rem);
+        line-height: 1.05;
+        letter-spacing: -0.05em;
+      }
+
+      .subcopy {
+        margin: 16px 0 0;
+        max-width: 860px;
+        font-size: 1.02rem;
+        line-height: 1.75;
+        color: var(--muted);
+      }
+
+      .panel {
+        padding: 22px;
+        margin-top: 18px;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 1.2rem;
+        letter-spacing: -0.03em;
+      }
+
+      .panel-note {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .identity-row,
+      .action-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .identity-row {
+        margin-top: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #334155;
+      }
+
+      input,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid rgba(19, 32, 51, 0.12);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--text);
+        padding: 15px 16px;
+        outline: none;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          transform 0.15s ease;
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+
+      input:focus,
+      textarea:focus {
+        border-color: rgba(37, 99, 235, 0.5);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: #94a3b8;
+      }
+
+      button {
+        border: 0;
+        border-radius: 18px;
+        padding: 14px 18px;
+        cursor: pointer;
+        font-weight: 700;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.2s ease,
+          background 0.2s ease,
+          opacity 0.2s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+        transform: none;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: white;
+        box-shadow: 0 12px 30px rgba(37, 99, 235, 0.28);
+      }
+
+      .btn-secondary {
+        background: rgba(15, 23, 42, 0.06);
+        color: #1e293b;
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid rgba(19, 32, 51, 0.12);
+      }
+
+      .identity-summary {
+        margin-top: 12px;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      .identity-summary strong {
+        color: var(--text);
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.95fr 0.75fr;
+        gap: 14px;
+      }
+
+      .field-stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+
+      .form-actions button {
+        min-width: 156px;
+      }
+
+      .fetch-note {
+        min-height: 24px;
+        margin-top: 10px;
+        font-size: 0.93rem;
+        color: var(--muted);
+      }
+
+      .fetch-note strong {
+        color: var(--text);
+      }
+
+      .table-tools {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border-radius: 22px;
+        border: 1px solid rgba(19, 32, 51, 0.08);
+        background: var(--panel-strong);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 840px;
+      }
+
+      th,
+      td {
+        padding: 16px 14px;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid rgba(19, 32, 51, 0.06);
+      }
+
+      th {
+        background: rgba(15, 23, 42, 0.03);
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        color: #52637c;
+      }
+
+      td {
+        font-size: 0.95rem;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+
+      .empty {
+        padding: 34px 18px;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .stack-label {
+        margin-bottom: 8px;
+      }
+
+      .inline-field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .link-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+      }
+
+      @media (max-width: 860px) {
+        .hero,
+        .panel {
+          padding: 18px;
+          border-radius: 22px;
+        }
+
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .link-row {
+          grid-template-columns: 1fr;
+        }
+
+        .table-tools {
+          align-items: flex-start;
+        }
+
+        .form-actions {
+          justify-content: stretch;
+        }
+
+        .form-actions button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="eyebrow">BOOK PURCHASE SUPPORT</div>
+        <h1>도서 신청 · 조회</h1>
+        <p class="subcopy">
+          참고 링크만 넣으면 책 정보를 먼저 불러오고, 팀 이메일 기준으로 본인 신청만 정리해서 보여줍니다.
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="identity-title">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title" id="identity-title">팀 이메일</h2>
+            <p class="panel-note">이메일을 저장하면 다음부터 자동으로 본인 신청만 보입니다.</p>
           </div>
         </div>
-      </div>
-      <div class="section hidden" id="unlock-result"></div>
-    </section>
-  </div>
+        <div class="identity-row">
+          <div style="flex: 1 1 360px; min-width: 240px">
+            <label class="stack-label" for="team-email">팀 이메일</label>
+            <input id="team-email" type="email" placeholder="name@company.com" autocomplete="email" />
+          </div>
+          <div class="action-row" style="align-self: end">
+            <button id="save-email" class="btn-primary" type="button">이메일 저장</button>
+            <button id="clear-email" class="btn-ghost" type="button">초기화</button>
+          </div>
+        </div>
+        <div class="identity-summary" id="identity-summary">현재 이메일: <strong>-</strong></div>
+      </section>
 
-  <div class="toast" id="toast"></div>
-  <script>
-    window.__BOOTSTRAP__ = {
-      program: {
-        start_month: "7월",
-        purchase_deadline: "매월 1일 오전 10시 마감, 매월 5일까지 주문",
-        purchase_manager: "Kristy (3개월)",
-        sheet_manager: "Saige",
-        quarter_budget: 50000,
-        sheet_url: "https://docs.google.com/spreadsheets/d/1Ei5rmKQk6kZj7Dfj7DRvrDLz20nVuEq3iUglUMeBaGE/edit?gid=0#gid=0",
-        sheet_status: "구글 시트 연결됨",
-        current_quarter: "-",
-        next_deadline: "",
-        rules: [
-          "분기별 1회 구매",
-          "1인당 5만원 이하",
-          "금액 몰아주기 금지",
-          "개인 배송지는 비밀번호로만 공개"
-        ]
-      },
-      records: [],
-      status_counts: {},
-      manager_password_set: false
-    };
-  </script>
-  <!--BOOTSTRAP_JSON_MARKER-->
-  <script src="./web/app.js"></script>
-</body>
+      <section class="panel" aria-labelledby="request-title">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title" id="request-title">도서 신청</h2>
+            <p class="panel-note">참고 링크를 넣고 정보를 불러온 뒤, 필요한 부분만 확인해서 신청하세요.</p>
+          </div>
+        </div>
+
+        <form id="request-form">
+          <div class="field-stack">
+            <div class="inline-field">
+              <label for="reference-link">참고 링크</label>
+              <div class="link-row">
+                <input
+                  id="reference-link"
+                  type="url"
+                  placeholder="도서 상세 페이지 링크를 붙여 넣어 주세요"
+                  autocomplete="off"
+                />
+                <button id="fetch-book" class="btn-secondary" type="button">정보 불러오기</button>
+              </div>
+              <div class="fetch-note" id="fetch-note">링크를 넣으면 도서명, 저자, 금액을 자동으로 채웁니다.</div>
+            </div>
+
+            <div class="form-grid">
+              <div class="inline-field">
+                <label for="book-title">도서명</label>
+                <input id="book-title" type="text" placeholder="자동 추출 또는 직접 입력" />
+              </div>
+              <div class="inline-field">
+                <label for="book-author">저자</label>
+                <input id="book-author" type="text" placeholder="자동 추출 또는 직접 입력" />
+              </div>
+              <div class="inline-field">
+                <label for="book-amount">금액(원)</label>
+                <input id="book-amount" type="text" inputmode="numeric" placeholder="예: 23,000" />
+              </div>
+            </div>
+
+            <div class="inline-field">
+              <label for="request-note">메모(선택)</label>
+              <textarea id="request-note" placeholder="추가로 남길 내용이 있으면 적어 주세요."></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="submit-request" class="btn-primary" type="submit">신청하기</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="records-title">
+        <div class="table-tools">
+          <div>
+            <h2 class="panel-title" id="records-title">내 신청</h2>
+            <p class="panel-note">저장된 팀 이메일로 등록한 내역만 보여줍니다.</p>
+          </div>
+          <button id="download-csv" class="btn-secondary" type="button">CSV 다운로드</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>신청일</th>
+                <th>도서명</th>
+                <th>저자</th>
+                <th>금액</th>
+                <th>상태</th>
+                <th>참고 링크</th>
+              </tr>
+            </thead>
+            <tbody id="records-body"></tbody>
+          </table>
+          <div id="empty-state" class="empty hidden">아직 신청 내역이 없습니다.</div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
 </html>

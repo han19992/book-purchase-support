@@ -1,94 +1,54 @@
-(() => {
-  const STORAGE_KEY = "book-purchase-support-state-v2";
-  const bootstrap = window.__BOOTSTRAP__ || {};
-  const program = {
-    start_month: "7월",
-    purchase_deadline: "매월 1일 오전 10시 마감, 매월 5일까지 주문",
-    purchase_manager: "Kristy (3개월)",
-    sheet_manager: "Saige",
-    quarter_budget: 50000,
-    sheet_url: "https://docs.google.com/spreadsheets/d/1Ei5rmKQk6kZj7Dfj7DRvrDLz20nVuEq3iUglUMeBaGE/edit?gid=0#gid=0",
-    sheet_status: "구글 시트 연결됨",
-    current_quarter: formatQuarter(new Date()),
-    next_deadline: "",
-    rules: [],
-    ...(bootstrap.program || {}),
+(function () {
+  const STORAGE_KEYS = {
+    email: "book-purchase-email-v1",
+    records: "book-purchase-records-v1",
   };
+
   const statusOptions = ["구매요청", "구매중", "구매완료", "소장용", "공유 가능"];
-  const shareOptions = ["검토중", "공유 가능", "개인 보관"];
 
   const els = {
-    currentQuarter: document.getElementById("current-quarter"),
-    quarterBudget: document.getElementById("quarter-budget"),
-    nextDeadline: document.getElementById("next-deadline"),
-    deadlineDetail: document.getElementById("deadline-detail"),
-    sheetStatus: document.getElementById("sheet-status"),
-    sheetLink: document.getElementById("sheet-link"),
-    rules: document.getElementById("rules"),
-    statusbar: document.getElementById("statusbar"),
+    teamEmail: document.getElementById("team-email"),
+    saveEmail: document.getElementById("save-email"),
+    clearEmail: document.getElementById("clear-email"),
+    identitySummary: document.getElementById("identity-summary"),
     requestForm: document.getElementById("request-form"),
+    referenceLink: document.getElementById("reference-link"),
+    fetchBook: document.getElementById("fetch-book"),
+    fetchNote: document.getElementById("fetch-note"),
+    bookTitle: document.getElementById("book-title"),
+    bookAuthor: document.getElementById("book-author"),
+    bookAmount: document.getElementById("book-amount"),
+    requestNote: document.getElementById("request-note"),
+    submitRequest: document.getElementById("submit-request"),
     recordsBody: document.getElementById("records-body"),
     emptyState: document.getElementById("empty-state"),
-    search: document.getElementById("search"),
-    statusFilter: document.getElementById("status-filter"),
-    unlockId: document.getElementById("unlock_id"),
-    unlockPassword: document.getElementById("unlock_password"),
-    unlockBtn: document.getElementById("unlock-btn"),
-    unlockResult: document.getElementById("unlock-result"),
-    adminLoginBtn: document.getElementById("admin-login-btn"),
-    toast: document.getElementById("toast"),
-    budgetNote: document.getElementById("budget-note"),
-    purchaseManager: document.getElementById("purchase_manager"),
-    requestQuarter: document.getElementById("request_quarter"),
-    csvDownload: document.getElementById("csv-download"),
+    downloadCsv: document.getElementById("download-csv"),
   };
 
   const state = {
+    email: "",
     records: [],
-    privateStore: {},
-    privateById: {},
-    search: "",
-    statusFilter: "",
-    managerUnlocked: sessionStorage.getItem("bookPurchaseManagerUnlocked") === "1",
+    extractionTimer: null,
+    extractionAbort: null,
+    extractionSequence: 0,
   };
 
-  const money = new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: "KRW",
-    maximumFractionDigits: 0,
-  });
-
-  function formatQuarter(date) {
-    const year = date.getFullYear();
-    const quarter = Math.floor(date.getMonth() / 3) + 1;
-    return `${year}년 ${quarter}분기`;
-  }
-
-  function nextDeadlineText(date) {
-    const next = new Date(date);
-    next.setDate(1);
-    next.setHours(10, 0, 0, 0);
-    if (date.getDate() > 1 || (date.getDate() === 1 && date.getHours() >= 10)) {
-      next.setMonth(next.getMonth() + 1);
+  function readJSON(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
     }
-    return next;
   }
 
-  function formatDeadline(value) {
-    if (!value) return "-";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleString("ko-KR", {
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
+  function writeJSON(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
   }
 
-  function escapeHtml(text) {
-    return String(text ?? "")
+  function escapeHtml(value) {
+    return String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -96,455 +56,413 @@
       .replaceAll("'", "&#39;");
   }
 
-  function toast(message) {
-    els.toast.textContent = message;
-    els.toast.classList.add("show");
-    clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => els.toast.classList.remove("show"), 3200);
-  }
-
-  function maskAddress(address) {
-    const text = String(address || "");
-    if (!text) return "비밀번호 입력 후 확인";
-    if (text.length <= 8) return `${text.slice(0, 2)}***`;
-    return `${text.slice(0, 6)}…${text.slice(-4)}`;
-  }
-
   function randomId() {
-    return `BK-${Date.now().toString(36).toUpperCase()}-${Math.random()
-      .toString(36)
-      .slice(2, 6)
-      .toUpperCase()}`;
+    return `BP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  }
+
+  function formatMoney(value) {
+    const number = Number(value || 0);
+    if (!Number.isFinite(number) || number <= 0) return "-";
+    return new Intl.NumberFormat("ko-KR").format(Math.round(number)) + "원";
+  }
+
+  function parseAmount(value) {
+    const digits = String(value ?? "").replace(/[^\d]/g, "");
+    return digits ? Number(digits) : 0;
+  }
+
+  function formatAmountInput(value) {
+    const amount = parseAmount(value);
+    return amount ? new Intl.NumberFormat("ko-KR").format(amount) : "";
+  }
+
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
   }
 
   function normalizeRecord(record) {
     return {
       id: record.id || randomId(),
-      requester_name: record.requester_name || "",
-      requester_email: record.requester_email || "",
-      book_title: record.book_title || "",
-      author: record.author || "",
-      book_url: record.book_url || "",
+      requester_email: normalizeEmail(record.requester_email),
+      reference_link: String(record.reference_link || "").trim(),
+      book_title: String(record.book_title || "").trim(),
+      author: String(record.author || "").trim(),
       estimated_amount: Number(record.estimated_amount || 0),
-      quarter: record.quarter || formatQuarter(new Date()),
-      purchase_status: record.purchase_status || "구매요청",
-      share_status: record.share_status || "검토중",
-      shipping_address_locked: record.shipping_address_locked || "비밀번호 입력 후 확인",
-      purchase_manager: record.purchase_manager || "Kristy",
-      urgent_request: Boolean(record.urgent_request),
-      notes: record.notes || "",
+      request_note: String(record.request_note || "").trim(),
+      purchase_status: statusOptions.includes(record.purchase_status)
+        ? record.purchase_status
+        : "구매요청",
+      share_status: String(record.share_status || "검토중").trim(),
       created_at: record.created_at || new Date().toISOString(),
+      updated_at: record.updated_at || new Date().toISOString(),
     };
-  }
-
-  function loadBootstrapRecords() {
-    const records = Array.isArray(bootstrap.records) ? bootstrap.records : [];
-    return records.map(normalizeRecord);
   }
 
   function loadState() {
-    state.records = loadBootstrapRecords();
-    state.privateStore = {};
-
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      if (Array.isArray(saved.records) && saved.records.length > 0) {
-        state.records = saved.records.map(normalizeRecord);
-      }
-      if (saved.privateStore && typeof saved.privateStore === "object") {
-        state.privateStore = saved.privateStore;
-      }
-    } catch {
-      // Keep defaults if storage is unavailable or malformed.
-    }
+    state.email = normalizeEmail(localStorage.getItem(STORAGE_KEYS.email) || "");
+    const stored = readJSON(STORAGE_KEYS.records, []);
+    state.records = Array.isArray(stored) ? stored.map(normalizeRecord) : [];
   }
 
-  function persistState() {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        records: state.records,
-        privateStore: state.privateStore,
-      })
-    );
+  function saveState() {
+    writeJSON(STORAGE_KEYS.records, state.records);
+    localStorage.setItem(STORAGE_KEYS.email, state.email);
   }
 
-  async function deriveKey(password, salt, usages) {
-    const encoder = new TextEncoder();
-    const baseKey = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(password),
-      "PBKDF2",
-      false,
-      ["deriveKey"]
-    );
-    return crypto.subtle.deriveKey(
-      {
-        name: "PBKDF2",
-        salt,
-        iterations: 120000,
-        hash: "SHA-256",
-      },
-      baseKey,
-      { name: "AES-GCM", length: 256 },
-      false,
-      usages
-    );
+  function setStatus(message, tone = "muted") {
+    els.fetchNote.innerHTML = tone === "error" ? `<strong>${escapeHtml(message)}</strong>` : escapeHtml(message);
+    els.fetchNote.dataset.tone = tone;
   }
 
-  function bytesToBase64(bytes) {
-    let binary = "";
-    bytes.forEach((byte) => {
-      binary += String.fromCharCode(byte);
-    });
-    return btoa(binary);
-  }
-
-  function base64ToBytes(value) {
-    const binary = atob(value);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  async function encryptAddress(address, password) {
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(password, salt, ["encrypt", "decrypt"]);
-    const cipher = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      new TextEncoder().encode(address)
-    );
-    return {
-      salt: bytesToBase64(salt),
-      iv: bytesToBase64(iv),
-      ciphertext: bytesToBase64(new Uint8Array(cipher)),
-    };
-  }
-
-  async function decryptAddress(bundle, password) {
-    const salt = base64ToBytes(bundle.salt);
-    const iv = base64ToBytes(bundle.iv);
-    const key = await deriveKey(password, salt, ["decrypt"]);
-    const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      base64ToBytes(bundle.ciphertext)
-    );
-    return new TextDecoder().decode(plain);
-  }
-
-  async function savePrivateEntry(recordId, address, password, requesterName) {
-    state.privateStore[recordId] = {
-      ...(await encryptAddress(address, password)),
-      requester_name: requesterName,
-      updated_at: new Date().toISOString(),
-    };
-    persistState();
-  }
-
-  function renderRules() {
-    const labels = [
-      ["프로그램 시작", "7월부터 운영을 시작합니다."],
-      ["구매 담당자", "Kristy가 3개월 단위로 구매를 맡고, 이후 분기마다 교체합니다."],
-      ["시트 관리", "Saige가 구글 시트 데이터를 관리합니다."],
-      ["구매 상태", "구매요청, 구매중, 구매완료, 소장용, 공유 가능으로 구분합니다."],
-    ];
-    els.rules.innerHTML = labels
-      .map(
-        ([title, text]) => `
-          <article class="rule">
-            <div class="title">${escapeHtml(title)}</div>
-            <div class="text">${escapeHtml(text)}</div>
-          </article>
-        `
-      )
-      .join("");
-  }
-
-  function updateHeader() {
-    els.currentQuarter.textContent = program.current_quarter || formatQuarter(new Date());
-    els.quarterBudget.textContent = money.format(program.quarter_budget || 50000);
-    const nextDeadline = program.next_deadline || nextDeadlineText(new Date()).toISOString();
-    els.nextDeadline.textContent = formatDeadline(nextDeadline);
-    els.deadlineDetail.textContent = program.purchase_deadline || "";
-    els.sheetStatus.textContent = program.sheet_status || "연결 준비 중";
-    els.sheetLink.href = program.sheet_url || "#";
-    els.sheetLink.textContent = program.sheet_url ? "구글 시트 열기" : "시트 연결 준비 중";
-    els.purchaseManager.value = program.purchase_manager?.split(" (")[0] || "Kristy";
-    els.requestQuarter.value = program.current_quarter || formatQuarter(new Date());
-    els.budgetNote.textContent = `개인당 분기 예산은 ${money.format(
-      program.quarter_budget || 50000
-    )}이며, 같은 분기 내 누적 신청 금액이 이를 넘을 수 없습니다.`;
-  }
-
-  function renderStatusbar() {
-    const counts = state.records.reduce((acc, record) => {
-      const key = record.purchase_status || "구매요청";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    els.statusbar.innerHTML = statusOptions
-      .map((status) => `<span class="badge">${escapeHtml(status)} ${counts[status] || 0}</span>`)
-      .join("");
+  function renderIdentity() {
+    els.teamEmail.value = state.email;
+    const current = state.email || "-";
+    els.identitySummary.innerHTML = `현재 이메일: <strong>${escapeHtml(current)}</strong>`;
+    els.submitRequest.disabled = !state.email;
+    els.saveEmail.textContent = state.email ? "이메일 저장" : "이메일 저장";
   }
 
   function filteredRecords() {
-    const term = state.search.trim().toLowerCase();
-    return state.records.filter((record) => {
-      const statusMatch = !state.statusFilter || record.purchase_status === state.statusFilter;
-      const haystack = [
-        record.requester_name,
-        record.requester_email,
-        record.book_title,
-        record.author,
-        record.purchase_status,
-        record.purchase_manager,
-        record.id,
-      ]
-        .join(" ")
-        .toLowerCase();
-      const searchMatch = !term || haystack.includes(term);
-      return statusMatch && searchMatch;
-    });
-  }
-
-  function renderRow(record) {
-    const unlockedAddress = state.privateById[record.id];
-    const addressCell = unlockedAddress
-      ? `<strong>${escapeHtml(unlockedAddress)}</strong><small>비밀번호 확인 완료</small>`
-      : `<strong>잠금</strong><small>${escapeHtml(record.shipping_address_locked || "비밀번호 입력 후 확인")}</small>`;
-
-    const statusControls = state.managerUnlocked
-      ? `
-        <div class="row-actions">
-          <select class="small" data-field="purchase_status">
-            ${statusOptions
-              .map(
-                (status) =>
-                  `<option value="${escapeHtml(status)}" ${
-                    record.purchase_status === status ? "selected" : ""
-                  }>${escapeHtml(status)}</option>`
-              )
-              .join("")}
-          </select>
-          <select class="small" data-field="share_status">
-            ${shareOptions
-              .map(
-                (status) =>
-                  `<option value="${escapeHtml(status)}" ${
-                    record.share_status === status ? "selected" : ""
-                  }>${escapeHtml(status)}</option>`
-              )
-              .join("")}
-          </select>
-          <input class="small" data-field="purchase_manager" value="${escapeHtml(
-            record.purchase_manager || ""
-          )}" />
-          <button class="secondary small" data-action="save" type="button">저장</button>
-        </div>
-      `
-      : `<span class="muted">${escapeHtml(record.purchase_status || "-")}</span>`;
-
-    return `
-      <tr data-record-id="${escapeHtml(record.id)}">
-        <td>
-          <strong>${escapeHtml(record.requester_name)}</strong>
-          <small>${escapeHtml(record.requester_email)}</small>
-          <small class="muted">ID: ${escapeHtml(record.id)}</small>
-        </td>
-        <td>
-          <strong>${escapeHtml(record.book_title)}</strong>
-          <small>${escapeHtml(record.author || "")}</small>
-          <small>${escapeHtml(record.book_url || "")}</small>
-        </td>
-        <td>
-          <strong>${money.format(Number(record.estimated_amount || 0))}</strong>
-          <small>${escapeHtml(record.quarter || "")}</small>
-        </td>
-        <td>${statusControls}</td>
-        <td>
-          <strong>${escapeHtml(record.share_status || "")}</strong>
-          <small>${escapeHtml(record.urgent_request ? "긴급 요청" : "정상 요청")}</small>
-        </td>
-        <td>${addressCell}</td>
-        <td><strong>${escapeHtml(record.purchase_manager || "")}</strong></td>
-        <td>
-          <div class="row-actions">
-            <button class="secondary small" data-action="unlock" type="button">주소 보기</button>
-          </div>
-        </td>
-      </tr>
-    `;
+    if (!state.email) return [];
+    return state.records
+      .filter((record) => record.requester_email === state.email)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
   function renderRecords() {
     const rows = filteredRecords();
-    els.recordsBody.innerHTML = rows.map(renderRow).join("");
+    els.recordsBody.innerHTML = rows
+      .map(
+        (record) => `
+          <tr>
+            <td>${escapeHtml(formatDate(record.created_at))}</td>
+            <td><strong>${escapeHtml(record.book_title || "-")}</strong></td>
+            <td>${escapeHtml(record.author || "-")}</td>
+            <td>${escapeHtml(formatMoney(record.estimated_amount))}</td>
+            <td><span class="status-pill">${escapeHtml(record.purchase_status || "구매요청")}</span></td>
+            <td>
+              ${record.reference_link ? `<a href="${escapeHtml(record.reference_link)}" target="_blank" rel="noreferrer">${escapeHtml(record.reference_link)}</a>` : "-"}
+            </td>
+          </tr>
+        `
+      )
+      .join("");
     els.emptyState.classList.toggle("hidden", rows.length !== 0);
   }
 
-  function renderUnlockResult(result) {
-    if (result) {
-      els.unlockResult.classList.remove("hidden");
-      els.unlockResult.innerHTML = `
-        <div class="rule">
-          <div class="title">개인 배송지 열람 완료</div>
-          <div class="text">
-            <strong>${escapeHtml(result.requester_name)}</strong>
-            <br />
-            ${escapeHtml(result.shipping_address)}
-          </div>
-        </div>
-      `;
-      return;
-    }
-    if (Object.keys(state.privateById).length === 0) {
-      els.unlockResult.classList.add("hidden");
-      els.unlockResult.innerHTML = "";
-    }
-  }
-
   function renderAll() {
-    updateHeader();
-    renderRules();
-    renderStatusbar();
-    renderRecords();
-    renderUnlockResult();
-    els.adminLoginBtn.textContent = state.managerUnlocked ? "관리자 모드 해제" : "관리자 모드";
-  }
-
-  function initFilters() {
-    els.statusFilter.innerHTML = ["<option value=\"\">전체 상태</option>"]
-      .concat(statusOptions.map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`))
-      .join("");
-  }
-
-  function syncFilters() {
-    state.search = els.search.value;
-    state.statusFilter = els.statusFilter.value;
+    renderIdentity();
     renderRecords();
   }
 
-  async function submitRequest(event) {
-    event.preventDefault();
-    const form = new FormData(els.requestForm);
-    const payload = Object.fromEntries(form.entries());
-    const shippingAddress = String(payload.shipping_address || "").trim();
-    const password = String(payload.private_password || "").trim();
+  function setDraftFromRecord(record, { overwrite = true } = {}) {
+    if (!record) return;
+    if (overwrite || !els.referenceLink.value.trim()) {
+      els.referenceLink.value = record.reference_link || "";
+    }
+    if (overwrite || !els.bookTitle.value.trim()) {
+      els.bookTitle.value = record.book_title || "";
+    }
+    if (overwrite || !els.bookAuthor.value.trim()) {
+      els.bookAuthor.value = record.author || "";
+    }
+    if (overwrite || !els.bookAmount.value.trim()) {
+      els.bookAmount.value = record.estimated_amount ? formatAmountInput(record.estimated_amount) : "";
+    }
+  }
 
-    if (!shippingAddress || !password) {
-      toast("배송지와 비밀번호를 모두 입력하세요.");
+  function parseMeta(doc, selectors) {
+    for (const selector of selectors) {
+      const node = doc.querySelector(selector);
+      const content = node?.getAttribute("content") || node?.textContent || "";
+      if (content.trim()) return content.trim();
+    }
+    return "";
+  }
+
+  function readJsonLd(doc) {
+    const nodes = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+    for (const node of nodes) {
+      const raw = node.textContent.trim();
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        const stack = Array.isArray(parsed) ? parsed : [parsed];
+        for (const item of stack) {
+          if (!item || typeof item !== "object") continue;
+          if (item["@graph"] && Array.isArray(item["@graph"])) {
+            stack.push(...item["@graph"]);
+          }
+          const type = item["@type"];
+          const typeText = Array.isArray(type) ? type.join(" ") : String(type || "");
+          if (/Book|Product/i.test(typeText) || item.name || item.headline) {
+            return item;
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  function extractAuthorFromText(text) {
+    const patterns = [
+      /저자[:\s]+([^\n|<]+)/i,
+      /작가[:\s]+([^\n|<]+)/i,
+      /author[:\s]+([^\n|<]+)/i,
+      /by\s+([^\n|<]+)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) return match[1].trim();
+    }
+    return "";
+  }
+
+  function extractTitleFromText(text) {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    return lines.find((line) => line.length > 3 && line.length < 120) || "";
+  }
+
+  function extractAmountFromText(text) {
+    const patterns = [
+      /(?:₩|원)\s?([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)/,
+      /([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\s?원/,
+      /price[:\s]+([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)/i,
+      /amount[:\s]+([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) return parseAmount(match[1]);
+    }
+    return 0;
+  }
+
+  function extractPriceFromLd(ld) {
+    if (!ld || typeof ld !== "object") return 0;
+    const offers = ld.offers;
+    const offerList = Array.isArray(offers) ? offers : offers ? [offers] : [];
+    for (const offer of offerList) {
+      const rawPrice = offer?.price ?? offer?.lowPrice ?? offer?.highPrice;
+      const amount = parseAmount(rawPrice);
+      if (amount) return amount;
+    }
+    return 0;
+  }
+
+  function extractAuthorFromLd(ld) {
+    if (!ld || typeof ld !== "object") return "";
+    const author = ld.author;
+    if (typeof author === "string") return author.trim();
+    if (Array.isArray(author)) {
+      const values = author
+        .map((item) => (typeof item === "string" ? item : item?.name || ""))
+        .filter(Boolean);
+      if (values.length) return values.join(", ");
+    }
+    if (author && typeof author === "object" && author.name) return String(author.name).trim();
+    return "";
+  }
+
+  function extractTitleFromLd(ld) {
+    if (!ld || typeof ld !== "object") return "";
+    return String(ld.name || ld.headline || ld.title || "").trim();
+  }
+
+  async function loadText(url) {
+    const attempts = [];
+    const trimmed = String(url || "").trim();
+    attempts.push(trimmed);
+    if (/^https?:\/\//i.test(trimmed)) {
+      attempts.push(`https://r.jina.ai/http://${trimmed.replace(/^https?:\/\//i, "")}`);
+    }
+    for (const candidate of attempts) {
+      try {
+        const response = await fetch(candidate, { redirect: "follow" });
+        if (!response.ok) continue;
+        return await response.text();
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("링크에서 정보를 읽어오지 못했습니다.");
+  }
+
+  function parseBookData(sourceText) {
+    const text = String(sourceText || "").trim();
+    if (!text) {
+      return { title: "", author: "", amount: 0 };
+    }
+
+    if (/^\s*</.test(text)) {
+      const doc = new DOMParser().parseFromString(text, "text/html");
+      const ld = readJsonLd(doc);
+      const title =
+        parseMeta(doc, ['meta[property="og:title"]', 'meta[name="twitter:title"]', 'meta[property="book:title"]']) ||
+        extractTitleFromLd(ld) ||
+        doc.title ||
+        "";
+      const author =
+        parseMeta(doc, ['meta[name="author"]', 'meta[property="book:author"]', 'meta[property="article:author"]']) ||
+        extractAuthorFromLd(ld) ||
+        extractAuthorFromText(doc.body?.innerText || "");
+      const amount =
+        extractPriceFromLd(ld) ||
+        parseAmount(parseMeta(doc, ['meta[property="product:price:amount"]', 'meta[property="og:price:amount"]'])) ||
+        extractAmountFromText(doc.body?.innerText || "");
+      return {
+        title: title.trim(),
+        author: author.trim(),
+        amount,
+      };
+    }
+
+    const title =
+      text.match(/(?:도서명|제목|title)[:\s]+([^\n]+)/i)?.[1]?.trim() ||
+      extractTitleFromText(text);
+    const author = extractAuthorFromText(text);
+    const amount = extractAmountFromText(text);
+    return { title, author, amount };
+  }
+
+  async function extractBookInfo({ overwrite = true } = {}) {
+    const link = els.referenceLink.value.trim();
+    if (!link) {
+      setStatus("참고 링크를 먼저 입력해 주세요.", "error");
       return;
     }
 
+    const sequence = ++state.extractionSequence;
+    setStatus("책 정보를 불러오는 중입니다...");
+    els.fetchBook.disabled = true;
     try {
-      const id = randomId();
-      const encrypted = await savePrivateEntry(
-        id,
-        shippingAddress,
-        password,
-        String(payload.requester_name || "")
+      const text = await loadText(link);
+      if (sequence !== state.extractionSequence) return;
+      const parsed = parseBookData(text);
+      if (!parsed.title && !parsed.author && !parsed.amount) {
+        throw new Error("추출할 정보가 충분하지 않습니다.");
+      }
+      setDraftFromRecord(
+        {
+          reference_link: link,
+          book_title: parsed.title,
+          author: parsed.author,
+          estimated_amount: parsed.amount,
+        },
+        { overwrite }
       );
-      void encrypted;
-
-      const record = normalizeRecord({
-        id,
-        requester_name: payload.requester_name,
-        requester_email: payload.requester_email,
-        book_title: payload.book_title,
-        author: payload.author,
-        book_url: payload.book_url,
-        estimated_amount: payload.estimated_amount,
-        quarter: els.requestQuarter.value || formatQuarter(new Date()),
-        purchase_status: "구매요청",
-        share_status: payload.share_status === "on" ? "공유 가능" : "검토중",
-        shipping_address_locked: maskAddress(shippingAddress),
-        purchase_manager: payload.purchase_manager || "Kristy",
-        urgent_request: payload.urgent_request === "on",
-        notes: payload.notes,
-      });
-
-      state.records.unshift(record);
-      persistState();
-      els.requestForm.reset();
-      els.purchaseManager.value = "Kristy";
-      els.requestQuarter.value = program.current_quarter || formatQuarter(new Date());
-      toast("신청이 등록되었습니다.");
-      renderAll();
+      const parts = [];
+      if (parsed.title) parts.push(`도서명: ${parsed.title}`);
+      if (parsed.author) parts.push(`저자: ${parsed.author}`);
+      if (parsed.amount) parts.push(`금액: ${formatMoney(parsed.amount)}`);
+      setStatus(parts.join(" / ") || "책 정보를 불러왔습니다.", "success");
     } catch (error) {
-      toast(error.message || "신청 등록에 실패했습니다.");
+      setStatus(error?.message || "자동 추출에 실패했습니다. 직접 수정해 주세요.", "error");
+    } finally {
+      if (sequence === state.extractionSequence) {
+        els.fetchBook.disabled = false;
+      }
     }
   }
 
-  async function unlockPrivate(recordId, password) {
-    const privateEntry = state.privateStore[recordId];
-    if (!privateEntry) {
-      throw new Error("해당 신청 ID를 찾을 수 없습니다.");
+  function addRequest(event) {
+    event.preventDefault();
+
+    if (!state.email) {
+      setStatus("먼저 팀 이메일을 저장해 주세요.", "error");
+      els.teamEmail.focus();
+      return;
     }
-    const shippingAddress = await decryptAddress(privateEntry, password);
-    state.privateById[recordId] = shippingAddress;
-    els.unlockId.value = recordId;
-    els.unlockPassword.value = "";
-    toast("배송지를 열람했습니다.");
-    renderAll();
-    renderUnlockResult({
-      requester_name: privateEntry.requester_name || "",
-      shipping_address: shippingAddress,
+
+    const referenceLink = els.referenceLink.value.trim();
+    const bookTitle = els.bookTitle.value.trim();
+    const author = els.bookAuthor.value.trim();
+    const amount = parseAmount(els.bookAmount.value);
+
+    if (!referenceLink) {
+      setStatus("참고 링크를 입력해 주세요.", "error");
+      els.referenceLink.focus();
+      return;
+    }
+
+    if (!bookTitle) {
+      setStatus("도서명을 확인해 주세요.", "error");
+      els.bookTitle.focus();
+      return;
+    }
+
+    const record = normalizeRecord({
+      id: randomId(),
+      requester_email: state.email,
+      reference_link: referenceLink,
+      book_title: bookTitle,
+      author,
+      estimated_amount: amount,
+      request_note: els.requestNote.value.trim(),
+      purchase_status: "구매요청",
+      share_status: "검토중",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
+
+    state.records.unshift(record);
+    saveState();
+    els.requestForm.reset();
+    els.referenceLink.focus();
+    renderAll();
+    setStatus("신청이 등록되었습니다.", "success");
   }
 
-  function saveAdminRow(row) {
-    const recordId = row.dataset.recordId;
-    const payload = {
-      purchase_status: row.querySelector('[data-field="purchase_status"]')?.value || "",
-      share_status: row.querySelector('[data-field="share_status"]')?.value || "",
-      purchase_manager: row.querySelector('[data-field="purchase_manager"]')?.value || "",
-    };
-    state.records = state.records.map((item) =>
-      item.id === recordId ? { ...item, ...payload } : item
-    );
-    persistState();
-    toast("상태를 저장했습니다.");
+  function saveEmail() {
+    state.email = normalizeEmail(els.teamEmail.value);
+    if (!state.email) {
+      setStatus("팀 이메일을 입력해 주세요.", "error");
+      renderAll();
+      return;
+    }
+    saveState();
     renderAll();
+    setStatus(`현재 이메일을 ${state.email}로 저장했습니다.`, "success");
+  }
+
+  function clearEmail() {
+    state.email = "";
+    localStorage.removeItem(STORAGE_KEYS.email);
+    renderAll();
+    setStatus("저장된 이메일을 지웠습니다.", "muted");
   }
 
   function exportCSV() {
     const rows = [
-      [
-        "신청ID",
-        "신청자",
-        "이메일",
-        "도서명",
-        "저자",
-        "금액",
-        "분기",
-        "구매상태",
-        "공유상태",
-        "구매담당자",
-        "긴급요청",
-        "배송지",
-      ],
+      ["신청일", "팀 이메일", "도서명", "저자", "금액", "상태", "공유 상태", "참고 링크", "메모"],
     ];
 
-    state.records.forEach((record) => {
-      const shippingAddress = state.privateById[record.id] || record.shipping_address_locked || "";
+    filteredRecords().forEach((record) => {
       rows.push([
-        record.id,
-        record.requester_name,
+        record.created_at,
         record.requester_email,
         record.book_title,
         record.author,
         String(record.estimated_amount || 0),
-        record.quarter,
         record.purchase_status,
         record.share_status,
-        record.purchase_manager,
-        record.urgent_request ? "Y" : "N",
-        shippingAddress,
+        record.reference_link,
+        record.request_note,
       ]);
     });
 
@@ -565,74 +483,57 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    toast("CSV를 내려받았습니다.");
+    setStatus("CSV 파일을 내려받았습니다.", "success");
   }
 
-  function bindEvents() {
-    els.requestForm.addEventListener("submit", submitRequest);
-    els.search.addEventListener("input", syncFilters);
-    els.statusFilter.addEventListener("change", syncFilters);
+  function wireEvents() {
+    els.saveEmail.addEventListener("click", saveEmail);
+    els.clearEmail.addEventListener("click", clearEmail);
+    els.requestForm.addEventListener("submit", addRequest);
+    els.fetchBook.addEventListener("click", () => extractBookInfo({ overwrite: true }));
+    els.downloadCsv.addEventListener("click", exportCSV);
 
-    els.unlockBtn.addEventListener("click", async () => {
-      const recordId = els.unlockId.value.trim();
-      const password = els.unlockPassword.value.trim();
-      if (!recordId || !password) {
-        toast("신청 ID와 비밀번호를 입력하세요.");
+    els.teamEmail.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveEmail();
+      }
+    });
+
+    els.referenceLink.addEventListener("input", () => {
+      clearTimeout(state.extractionTimer);
+      const value = els.referenceLink.value.trim();
+      if (!value) {
+        setStatus("링크를 넣으면 도서 정보를 자동으로 불러옵니다.");
         return;
       }
-      try {
-        await unlockPrivate(recordId, password);
-      } catch (error) {
-        toast(error.message || "배송지 열람에 실패했습니다.");
-      }
+      state.extractionTimer = setTimeout(() => {
+        extractBookInfo({ overwrite: true });
+      }, 700);
     });
 
-    els.adminLoginBtn.addEventListener("click", () => {
-      state.managerUnlocked = !state.managerUnlocked;
-      sessionStorage.setItem("bookPurchaseManagerUnlocked", state.managerUnlocked ? "1" : "0");
-      toast(state.managerUnlocked ? "관리자 모드가 활성화되었습니다." : "관리자 모드를 해제했습니다.");
-      renderAll();
+    els.bookAmount.addEventListener("blur", () => {
+      els.bookAmount.value = formatAmountInput(els.bookAmount.value);
     });
-
-    els.recordsBody.addEventListener("click", (event) => {
-      const button = event.target.closest("button");
-      if (!button) return;
-      const row = event.target.closest("tr");
-      if (!row) return;
-      if (button.dataset.action === "unlock") {
-        const recordId = row.dataset.recordId;
-        const password = prompt("배송지를 열람할 비밀번호를 입력하세요");
-        if (!password) return;
-        unlockPrivate(recordId, password).catch((error) => toast(error.message || "열람 실패"));
-      }
-      if (button.dataset.action === "save") {
-        if (!state.managerUnlocked) {
-          toast("관리자 모드를 먼저 켜주세요.");
-          return;
-        }
-        saveAdminRow(row);
-      }
-    });
-
-    els.csvDownload.addEventListener("click", exportCSV);
 
     window.addEventListener("storage", (event) => {
-      if (event.key === STORAGE_KEY) {
+      if (event.key === STORAGE_KEYS.email || event.key === STORAGE_KEYS.records) {
         loadState();
         renderAll();
       }
     });
   }
 
-  function bootstrapStatus() {
+  function init() {
     loadState();
-    initFilters();
-    bindEvents();
     renderAll();
-    if (state.managerUnlocked) {
-      toast("저장된 관리자 모드가 복원되었습니다.");
+    wireEvents();
+    if (state.email) {
+      setStatus("팀 이메일이 저장되어 있습니다. 참고 링크만 넣고 신청하세요.");
+    } else {
+      setStatus("팀 이메일을 저장한 뒤 신청을 시작하세요.");
     }
   }
 
-  bootstrapStatus();
+  init();
 })();
