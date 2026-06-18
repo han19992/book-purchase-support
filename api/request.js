@@ -1,4 +1,4 @@
-const { enabled, normalizeRecord, quarterLabel, readRecords, writeRecords } = require("./_lib/google-sheets");
+const { enabled, appendRecord, normalizeRecord, quarterLabel, readRecords } = require("./_lib/google-sheets");
 
 function json(res, status, payload) {
   res.status(status).json(payload);
@@ -40,11 +40,11 @@ module.exports = async function handler(req, res) {
       updated_at: new Date().toISOString(),
     });
 
-    const nextRecords = [nextRecord, ...current];
     if (enabled()) {
-      await writeRecords(nextRecords);
+      await appendRecord(nextRecord);
     }
 
+    const nextRecords = [nextRecord, ...current];
     json(res, 200, { ok: true, record: nextRecord, sheetConnected: enabled(), records: nextRecords });
   } catch (error) {
     json(res, 400, { ok: false, error: error.message || "request failed" });
