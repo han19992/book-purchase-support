@@ -21,4 +21,5 @@
 ## 참고
 
 - 현재 페이지는 정적 HTML 기반입니다.
-- 기록은 브라우저 저장소에 보관됩니다.
+- 기록은 브라우저 저장소에 보관되며, Vercel API가 연결되면 Google Sheets에도 동시에 기록됩니다.
+- Vercel 환경 변수: `GOOGLE_SHEET_URL` 또는 `GOOGLE_SHEET_ID`, `GOOGLE_SHEET_TAB`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_PRIVATE_KEY`
