@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
       estimated_amount: estimatedAmount,
       purchase_status: "구매요청",
       share_status: "검토중",
-      request_note,
+      request_note: requestNote,
       updated_at: new Date().toISOString(),
     });
 
