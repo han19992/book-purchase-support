@@ -87,6 +87,30 @@
         color: var(--muted);
       }
 
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(19, 32, 51, 0.04);
+        border: 1px solid rgba(19, 32, 51, 0.08);
+        color: #304055;
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+
+      .meta-pill strong {
+        color: var(--text);
+      }
+
       .panel {
         padding: 22px;
         margin-top: 18px;
@@ -370,6 +394,11 @@
         <p class="subcopy">
           참고 링크만 넣으면 책 정보를 먼저 불러오고, 팀 이메일 기준으로 본인 신청만 정리해서 보여줍니다.
         </p>
+        <div class="hero-meta" aria-label="신청 안내">
+          <div class="meta-pill">신청 마감: <strong>분기별 1일 오전 10시까지</strong></div>
+          <div class="meta-pill">구매 진행: <strong>매월 5일까지</strong></div>
+          <div class="meta-pill">구매 담당자: <strong>Kristy 님</strong></div>
+        </div>
       </section>
 
       <section class="panel" aria-labelledby="identity-title">
