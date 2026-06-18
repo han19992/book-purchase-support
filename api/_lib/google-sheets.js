@@ -89,7 +89,7 @@ async function readRecords() {
 
 async function appendRecord(record) {
   if (!enabled()) return;
-  await scriptRequest("POST", { record: normalizeRecord(record) });
+  await scriptRequest("POST", normalizeRecord(record));
 }
 
 module.exports = {
