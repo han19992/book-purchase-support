@@ -1,7 +1,5 @@
 const crypto = require("crypto");
 
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1Ei5rmKQk6kZj7Dfj7DRvrDLz20nVuEq3iUglUMeBaGE/edit?gid=0#gid=0";
-
 const HEADERS = [
   "id",
   "created_at",
@@ -27,7 +25,7 @@ function parseSheetId(urlOrId) {
 }
 
 function sheetId() {
-  return parseSheetId(process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_URL || DEFAULT_SHEET_URL);
+  return parseSheetId(process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_URL || "");
 }
 
 function sheetTab() {
